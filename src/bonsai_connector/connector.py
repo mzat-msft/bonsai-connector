@@ -55,6 +55,12 @@ class BonsaiConnector:
         )
         self.sequence_id = 1
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close_session()
+
     @staticmethod
     def validate_state(state):
         """
