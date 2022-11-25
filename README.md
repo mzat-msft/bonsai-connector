@@ -26,6 +26,8 @@ class SomeSim:
         while True:
             next_event = self.connector.next_event(self.state)
             self.do_something_with_event(next_event)
+        # Close the connection after you're done
+        self.connector.close_connection()
 ```
 
 You must provide and interface dictionary when initializing the connector. At
