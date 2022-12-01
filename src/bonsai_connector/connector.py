@@ -59,6 +59,9 @@ class BonsaiConnector:
         return self
 
     def __exit__(self, type, value, traceback):
+        log.info(
+            f"Closing session with session_id {self.registered_session.session_id}"
+        )
         self.close_session()
 
     @staticmethod
