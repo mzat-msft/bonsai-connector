@@ -34,26 +34,28 @@ class BonsaiConnector:
     The class initialized by passing the simulation interface as a
     JSON-serializable dictionary. The dictionary must contain the ``name`` of
     the sim and the ``timeout`` in seconds as an ``int``.
+
+    Parameters
+    ----------
+
+    sim_interface : dict
+        Dictionary containing simulator informations such as ``name`` and ``timeout``
+
+    retry : bool
+        If true, when platform unregisters the sim the connector tries to reconnect
+
+    verbose : bool
+        Higher level of verbosity for logs
     """
 
-    def __init__(self, sim_interface, *, verbose=False):
-        client_config = BonsaiClientConfig(enable_logging=verbose)
-        self.workspace = client_config.workspace
-        self.client = BonsaiClient(client_config)
+    def __init__(self, sim_interface, *, retry=False, verbose=False):
+        self.client_config = BonsaiClientConfig(enable_logging=verbose)
+        self.workspace = self.client_config.workspace
+        self.client = BonsaiClient(self.client_config)
         self.verbose = verbose
-
-        reg_info = SimulatorInterface(
-            simulator_context=client_config.simulator_context,
-            **sim_interface,
-        )
-        self.registered_session = self.client.session.create(
-            workspace_name=self.workspace,
-            body=reg_info,
-        )
-        log.info(
-            f"Created session with session_id {self.registered_session.session_id}"
-        )
-        self.sequence_id = 1
+        self.sim_interface = sim_interface
+        self.retry = retry
+        self.register_sim()
 
     def __enter__(self):
         return self
@@ -63,6 +65,20 @@ class BonsaiConnector:
             f"Closing session with session_id {self.registered_session.session_id}"
         )
         self.close_session()
+
+    def register_sim(self):
+        reg_info = SimulatorInterface(
+            simulator_context=self.client_config.simulator_context,
+            **self.sim_interface,
+        )
+        self.registered_session = self.client.session.create(
+            workspace_name=self.workspace,
+            body=reg_info,
+        )
+        self.sequence_id = 1
+        log.info(
+            f"Created session with session_id {self.registered_session.session_id}"
+        )
 
     @staticmethod
     def validate_state(state):
@@ -96,13 +112,13 @@ class BonsaiConnector:
                     if has_invalid_type(nested_val):
                         raise TypeError(f"Element in dict not supported: {type(val)}")
 
-    def next_event(self, gym_state) -> BonsaiEvent:
+    def next_event(self, state) -> BonsaiEvent:
         """Poll the Bonsai platform for the next event and advance the state."""
-        self.validate_state(gym_state)
+        self.validate_state(state)
         sim_state = SimulatorState(
             sequence_id=self.sequence_id,
-            state=gym_state,
-            halted=gym_state.get("halted", False),
+            state=state,
+            halted=state.get("halted", False),
         )
         event = self.client.session.advance(
             workspace_name=self.workspace,
@@ -123,10 +139,16 @@ class BonsaiConnector:
                 BonsaiEventType.EPISODE_FINISH, event.episode_finish.reason
             )
         elif event.type == "Unregister":
-            raise RuntimeError(
-                "Simulator Session unregistered by platform because of ",
-                event.unregister.details,
-            )
+            log.info("Simulator Session unregistered by the platform")
+            if self.retry:
+                log.info("Re-registering...")
+                self.register_sim()
+                self.next_event(state)
+            else:
+                raise RuntimeError(
+                    "Simulator Session unregistered by platform because of ",
+                    event.unregister.details,
+                )
         raise TypeError(f"Unknown event type. Received {event.type}")
 
     def close_session(self):
