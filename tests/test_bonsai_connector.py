@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from bonsai_connector import BonsaiConnector
+from bonsai_connector.connector import validate_state
 
 states = (
     ({"numpy": np.float_(10)}, False),
@@ -17,13 +17,14 @@ states = (
     ({"invalid": [np.int_(2), np.int_(5)]}, False),
     ({"invalid": "string"}, False),
     ({"invalid": {"dict": np.float_(100)}}, False),
+    ({"invalid_nested": {'a': {'b': complex(1, 3)}}}, False),
 )
 
 
 @pytest.mark.parametrize("state, valid", states)
 def test_bonsai_connector_validate_state(state, valid):
     if valid:
-        assert BonsaiConnector.validate_state(state) is None
+        assert validate_state(state) is None
     else:
         with pytest.raises(TypeError):
-            BonsaiConnector.validate_state(state)
+            validate_state(state)

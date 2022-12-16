@@ -27,6 +27,39 @@ class BonsaiEvent:
         return f"{self.event_type}: {self.event_content}"
 
 
+def validate_state(state):
+    """
+    Validate the state.
+
+    The serialization of the state works only on builtin types.
+    """
+    allowed_types = (bool, dict, float, int, list)
+    iterable_types = (dict, list)
+
+    def has_invalid_type(x):
+        """
+        Return False when x is not an allowed type.
+
+        We need to use ``type`` instead of ``isinstance`` because of:
+        https://github.com/Azure/msrest-for-python/issues/257
+        """
+        return type(x) not in allowed_types
+
+    if has_invalid_type(state):
+        raise TypeError(f"Element '{state}' not supported: {type(state)}")
+
+    if not has_invalid_type(state) and type(state) not in iterable_types:
+        return
+
+    if type(state) == dict:
+        # Assume key is always a supported type
+        for _, val in state.items():
+            validate_state(val)
+    elif type(state) == list:
+        for item in state:
+            validate_state(item)
+
+
 class BonsaiConnector:
     """
     Class that allows communications between Bonsai and Simulation.
@@ -80,43 +113,9 @@ class BonsaiConnector:
             f"Created session with session_id {self.registered_session.session_id}"
         )
 
-    @staticmethod
-    def validate_state(state):
-        """
-        Validate the state.
-
-        The serialization of the state works only on builtin types.
-
-        TODO: consider whether nested list/dict should be evaluated
-        """
-        allowed_types = (bool, dict, float, int, list)
-
-        def has_invalid_type(x):
-            """
-            Return False when x is not an allowed type.
-
-            We need to use ``type`` instead of ``isinstance`` because of:
-            https://github.com/Azure/msrest-for-python/issues/257
-            """
-            return type(x) not in allowed_types
-
-        for val in state.values():
-            if has_invalid_type(val):
-                raise TypeError(f"Type of state variable not supported: {type(val)}")
-            if isinstance(val, list):
-                for item in val:
-                    if has_invalid_type(item):
-                        raise TypeError(f"Element in list not supported: {type(val)}")
-            elif isinstance(val, dict):
-                for nested_val in val.values():
-                    if has_invalid_type(nested_val):
-                        raise TypeError(
-                            f"Element in dict not supported: {type(nested_val)}"
-                        )
-
     def next_event(self, state) -> BonsaiEvent:
         """Poll the Bonsai platform for the next event and advance the state."""
-        self.validate_state(state)
+        validate_state(state)
         sim_state = SimulatorState(
             sequence_id=self.sequence_id,
             state=state,
