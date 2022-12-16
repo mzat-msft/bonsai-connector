@@ -110,7 +110,9 @@ class BonsaiConnector:
             elif isinstance(val, dict):
                 for nested_val in val.values():
                     if has_invalid_type(nested_val):
-                        raise TypeError(f"Element in dict not supported: {type(val)}")
+                        raise TypeError(
+                            f"Element in dict not supported: {type(nested_val)}"
+                        )
 
     def next_event(self, state) -> BonsaiEvent:
         """Poll the Bonsai platform for the next event and advance the state."""
