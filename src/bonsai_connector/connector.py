@@ -120,11 +120,13 @@ class BonsaiConnector:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         log.info(
             f"Closing session with session_id {self.registered_session.session_id}"
         )
         self.close_session()
+        if type_ == KeyboardInterrupt:
+            return True
 
     def register_sim(self):
         reg_info = SimulatorInterface(
