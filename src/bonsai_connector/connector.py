@@ -1,7 +1,11 @@
 import dataclasses
+import json
 from enum import Enum
+from pathlib import Path
 from typing import Dict, Optional, Union
 
+import jsonschema
+from jsonschema.exceptions import ValidationError
 from microsoft_bonsai_api.simulator.client import BonsaiClient, BonsaiClientConfig
 from microsoft_bonsai_api.simulator.generated.models import (
     SimulatorInterface,
@@ -86,9 +90,32 @@ class BonsaiConnector:
         self.workspace = self.client_config.workspace
         self.client = BonsaiClient(self.client_config)
         self.verbose = verbose
-        self.sim_interface = sim_interface
+        self.sim_interface = self.validate_interface(sim_interface)
         self.retry = retry
         self.register_sim()
+
+    def validate_interface(self, sim_interface):
+        schema_loc = Path(__file__).parent / "schema"
+
+        schema_iface = json.loads((schema_loc / "siminterface.schema.json").read_text())
+
+        schema_types_fp = schema_loc / "simtypes.schema.json"
+        schema_types = json.loads(schema_types_fp.read_text())
+        schema_store = {
+            str(f'/{schema_types_fp.name}'): schema_types,
+        }
+
+        resolver = jsonschema.RefResolver.from_schema(schema_iface, store=schema_store)
+        try:
+            jsonschema.validate(sim_interface, schema_iface, resolver=resolver)
+            log.info("JSON schema for sim_interface successfully validated.")
+        except ValidationError as exc:
+            log.warning("Errors validating sim_interface JSON schema.")
+            log.warning(exc)
+        except BaseException as exc:
+            log.warning("Something went wrong when validating sim_interface schema.")
+            log.warning(exc)
+        return sim_interface
 
     def __enter__(self):
         return self
