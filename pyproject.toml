@@ -13,8 +13,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "jsonschema>=4.17<4.18",
-    "microsoft-bonsai-api>=0.1<0.2",
+    "jsonschema >= 4.17, < 4.18",
+    "microsoft-bonsai-api >= 0.1, < 0.2",
 ]
 
 [project.urls]
