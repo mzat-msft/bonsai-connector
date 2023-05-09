@@ -158,7 +158,9 @@ class BonsaiConnector:
         self.sequence_id = event.sequence_id
         if event.type == "Idle":
             log.info("Idling...")
-            return BonsaiEvent(BonsaiEventType.IDLE, {})
+            return BonsaiEvent(
+                BonsaiEventType.IDLE, {"callback_time": event.idle.callback_time}
+            )
         elif event.type == "EpisodeStart":
             log.info("Start episode")
             return BonsaiEvent(
