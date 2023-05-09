@@ -157,14 +157,18 @@ class BonsaiConnector:
         )
         self.sequence_id = event.sequence_id
         if event.type == "Idle":
+            log.info("Idling...")
             return BonsaiEvent(BonsaiEventType.IDLE, {})
         elif event.type == "EpisodeStart":
+            log.info("Start episode")
             return BonsaiEvent(
                 BonsaiEventType.EPISODE_START, event.episode_start.config
             )
         elif event.type == "EpisodeStep":
+            log.info("Episode step")
             return BonsaiEvent(BonsaiEventType.EPISODE_STEP, event.episode_step.action)
         elif event.type == "EpisodeFinish":
+            log.info("Finish step")
             return BonsaiEvent(
                 BonsaiEventType.EPISODE_FINISH, event.episode_finish.reason
             )
